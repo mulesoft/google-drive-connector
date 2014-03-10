@@ -6,12 +6,12 @@
 	<artifactId>mule-module-google-drive</artifactId>
 	<packaging>mule-module</packaging>
 	<name>Google Drive Connector</name>
-	<version>2.0.0-SNAPSHOT</version>
+	<version>1.5.0-SNAPSHOT</version>
 
 	<parent>
 		<groupId>org.mule.tools.devkit</groupId>
 		<artifactId>mule-devkit-parent</artifactId>
-		<version>3.5.0-M4</version>
+		<version>3.4.3</version>
 	</parent>
 
 	<properties>
@@ -22,7 +22,7 @@
 		<licensePath>LICENSE.md</licensePath>
 		<devkit.studio.package.skip>false</devkit.studio.package.skip>
 		<connector.test.version>2.0.3</connector.test.version>
-        <google.commons.version>2.0.0-SNAPSHOT</google.commons.version>
+        <google.commons.version>1.5.0-SNAPSHOT</google.commons.version>
     </properties>
 
 	<dependencies>

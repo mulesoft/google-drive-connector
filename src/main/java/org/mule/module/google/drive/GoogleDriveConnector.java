@@ -12,17 +12,21 @@ package org.mule.module.google.drive;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
 
+import javax.inject.Inject;
+
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.mule.api.MuleMessage;
 import org.mule.api.annotations.Configurable;
 import org.mule.api.annotations.Connector;
-import org.mule.api.annotations.Paged;
 import org.mule.api.annotations.Processor;
 import org.mule.api.annotations.lifecycle.Start;
 import org.mule.api.annotations.oauth.OAuth2;
 import org.mule.api.annotations.oauth.OAuthAccessToken;
+import org.mule.api.annotations.oauth.OAuthAccessTokenIdentifier;
 import org.mule.api.annotations.oauth.OAuthAuthorizationParameter;
 import org.mule.api.annotations.oauth.OAuthConsumerKey;
 import org.mule.api.annotations.oauth.OAuthConsumerSecret;
@@ -44,11 +48,9 @@ import org.mule.module.google.drive.model.stream.StreamContent;
 import org.mule.modules.google.AbstractGoogleOAuthConnector;
 import org.mule.modules.google.AccessType;
 import org.mule.modules.google.ForcePrompt;
-import org.mule.modules.google.GoogleUserIdExtractor;
-import org.mule.modules.google.api.pagination.TokenBasedPagingDelegate;
+import org.mule.modules.google.IdentifierPolicy;
+import org.mule.modules.google.api.pagination.PaginationUtils;
 import org.mule.modules.google.oauth.invalidation.OAuthTokenExpiredException;
-import org.mule.streaming.PagingConfiguration;
-import org.mule.streaming.PagingDelegate;
 
 import com.google.api.client.http.AbstractInputStreamContent;
 import com.google.api.client.http.GenericUrl;
@@ -59,6 +61,7 @@ import com.google.api.services.drive.Drive.Files.Patch;
 import com.google.api.services.drive.Drive.Files.Update;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.ChangeList;
+import com.google.api.services.drive.model.ChildList;
 import com.google.api.services.drive.model.ChildReference;
 import com.google.api.services.drive.model.CommentList;
 import com.google.api.services.drive.model.CommentReplyList;
@@ -85,6 +88,8 @@ import com.google.api.services.drive.model.FileList;
 		}
 )
 public class GoogleDriveConnector extends AbstractGoogleOAuthConnector {
+	
+	public static final String NEXT_PAGE_TOKEN = "GoogleDrive_NEXT_PAGE_TOKEN";
 	
 	/**
      * The OAuth2 consumer key 
@@ -123,6 +128,19 @@ public class GoogleDriveConnector extends AbstractGoogleOAuthConnector {
     private String scope;
     
     /**
+     * This policy represents which id we want to use to represent each google account.
+     * 
+     * PROFILE means that we want the google profile id. That means, the user's primary key in google's DB.
+     * This is a long number represented as a string.
+     * 
+     * EMAIL means you want to use the account's email address
+     */
+    @Configurable
+    @Optional
+    @Default("EMAIL")
+    private IdentifierPolicy identifierPolicy = IdentifierPolicy.EMAIL;
+    
+    /**
      * Factory to instantiate the underlying google client.
      * Usually you don't need to override this. Most common
      * use case of a custom value here is testing.
@@ -151,10 +169,14 @@ public class GoogleDriveConnector extends AbstractGoogleOAuthConnector {
 		}
 	}
 	
+	@OAuthAccessTokenIdentifier
+	public String getAccessTokenId() {
+		return this.identifierPolicy.getId(this);
+	}
+	
 	@OAuthPostAuthorization
 	public void postAuth() {
 		this.client = this.clientFactory.newClient(this.getAccessToken(), this.getApplicationName());
-		GoogleUserIdExtractor.fetchAndPublishAsFlowVar(this);
 	}
 	
 	/**
@@ -395,40 +417,38 @@ public class GoogleDriveConnector extends AbstractGoogleOAuthConnector {
 	}
 	
 	/**
-	 * Returns a paginated {@link Iterator} with the user's {@link org.mule.module.google.drive.model.File}s.
+	 * Lists the user's files.
 	 * 
+	 * For supporting google's paging mechanism, the next page token is stored on the message property
+     * &quot;GoogleDrive_NEXT_PAGE_TOKEN&quot;. If there isn't a next page, then the property is removed
+     * 
 	 * {@sample.xml ../../../doc/GoogleDriveConnector.xml.sample google-drive:list-files}
 	 * 
+	 * @param message the current mule message
 	 * @param maxResults The maximum number of replies to include in the response, used for paging. 
 	 * @param query Query string for searching files.
-	 * @param pagingConfiguration the paging configuration object
-     * @return a paginated iterator with instances of {@link org.mule.module.google.drive.model.File}
+	 * @param pageToken The continuation token, used to page through large result sets
+	 * @return a list with instances of {@link org.mule.module.google.drive.model.File}
 	 * @throws IOException in case of connection issues
 	 */
 	@Processor
     @OAuthProtected
 	@OAuthInvalidateAccessTokenOn(exception=OAuthTokenExpiredException.class)
-	@Paged
-	public PagingDelegate<File> listFiles(
-			final @Optional @Default("100") int maxResults,
-			final @Optional String query,
-    		final PagingConfiguration pagingConfiguration) throws IOException {
+	@Inject
+	public List<File> listFiles(
+			MuleMessage message,
+			@Optional @Default("100") int maxResults,
+			@Optional String query,
+    		@Optional @Default("#[flowVars['GoogleDrive_NEXT_PAGE_TOKEN']]") String pageToken) throws IOException {
 		
-		return new TokenBasedPagingDelegate<File>() {
-    		
-    		@Override
-    		public List<File> doGetPage() throws IOException {
-    			FileList response = client.files().list()
-						.setMaxResults(maxResults)
-						.setPageToken(this.getPageToken())
-						.setQ(query)
-						.execute();
-    			
-    			this.setPageToken(response.getNextPageToken());
-	
-    			return File.valueOf(response.getItems(), File.class);
-    		}
-		};
+		FileList response = this.client.files().list()
+							.setMaxResults(maxResults)
+							.setPageToken(pageToken)
+							.setQ(query)
+							.execute();
+		
+		PaginationUtils.savePageToken(NEXT_PAGE_TOKEN, response.getNextPageToken(), message);
+		return File.valueOf(response.getItems(), File.class);
 	}
 	
 	/**
@@ -544,46 +564,43 @@ public class GoogleDriveConnector extends AbstractGoogleOAuthConnector {
 	}
 	
 	/**
-	 * Returns a paginated {@link Iterator} with the {@link org.mule.module.google.drive.model.Change} objects for a user
+	 * Lists the changes for a user
 	 * 
 	 * {@sample.xml ../../../doc/GoogleDriveConnector.xml.sample google-drive:list-changes}
 	 * 
+	 * @param message the current mule message
 	 * @param includeDeleted Whether to include deleted items
 	 * @param includeSubscribed Whether to include shared files and public files the user has opened. When set to false, the list will include owned files plus any shared or public files the user has explictly added to a folder in Drive
 	 * @param maxResults Maximum number of changes to return.
+	 * @param pageToken The continuation token, used to page through large result sets. 
 	 * @param startChangeId Change ID to start listing changes from.
-	 * @param pagingConfiguration the paging configuration object
-     * @return a paginated iterator with instances of {@link org.mule.module.google.drive.model.File}
+	 * @return a list with instance of {@link org.mule.module.google.drive.model.Change}
 	 * @throws IOException in case of connection issues
 	 */
 	@Processor
     @OAuthProtected
 	@OAuthInvalidateAccessTokenOn(exception=OAuthTokenExpiredException.class)
-	@Paged
-	public PagingDelegate<Change> listChanges(
-			final @Optional @Default("true") boolean includeDeleted,
-			final @Optional @Default("true") boolean includeSubscribed,
-			final @Optional @Default("100") int maxResults,
-			final @Optional Long startChangeId,
-			final PagingConfiguration pagingConfiguration
+	@Inject
+	public List<Change> listChanges(
+			MuleMessage message,
+			@Optional @Default("true") boolean includeDeleted,
+			@Optional @Default("true") boolean includeSubscribed,
+			@Optional @Default("100") int maxResults,
+			@Optional @Default("#[flowVars['GoogleDrive_NEXT_PAGE_TOKEN']]") String pageToken,
+			@Optional Long startChangeId
 			) throws IOException {
 		
-		return new TokenBasedPagingDelegate<Change>() {
-			
-			@Override
-			protected List<Change> doGetPage() throws IOException {
-				ChangeList response = client.changes().list()
-						.setIncludeDeleted(includeDeleted)
-						.setIncludeSubscribed(includeSubscribed)
-						.setMaxResults(maxResults)
-						.setPageToken(this.getPageToken())
-						.setStartChangeId(startChangeId)
-						.execute();
-				
-				this.setPageToken(response.getNextPageToken());
-				return Change.valueOf(response.getItems(), Change.class);
-			}
-		};
+		ChangeList response = this.client.changes().list()
+									.setIncludeDeleted(includeDeleted)
+									.setIncludeSubscribed(includeSubscribed)
+									.setMaxResults(maxResults)
+									.setPageToken(pageToken)
+									.setStartChangeId(startChangeId)
+									.execute();
+		
+		PaginationUtils.savePageToken(NEXT_PAGE_TOKEN, response.getNextPageToken(), message);
+		
+		return Change.valueOf(response.getItems(), Change.class);
 	}
 	
 	/**
@@ -636,6 +653,48 @@ public class GoogleDriveConnector extends AbstractGoogleOAuthConnector {
 		ChildReference child = new ChildReference();
 		child.setId(fileId);
 		this.client.children().delete(folderId, fileId).execute();
+	}
+	
+	/**
+	 * Returns a list with the ids of the files that are under the given folder
+	 * 
+	 * {@sample.xml ../../../doc/GoogleDriveConnector.xml.sample google-drive:list-files-in-folder}
+	 * 
+	 * @param message the current mule message
+	 * @param folderId The ID of the folder. To list all files in the root folder, use the alias root as the value for folderId.
+	 * @param maxResults Maximum number of children to return.
+	 * @param query Query string for searching children
+	 * @return a list of strings with the matching file ids
+	 * @throws IOException in case of connection issues
+	 */
+	@Processor
+    @OAuthProtected
+	@OAuthInvalidateAccessTokenOn(exception=OAuthTokenExpiredException.class)
+	@Inject
+	public List<String> listFilesInFolder(
+			MuleMessage message,
+			@Optional @Default("root") String folderId,
+			@Optional @Default("100") int maxResults,
+			@Optional String query) throws IOException {
+		
+		ChildList list = this.client.children().list(folderId)
+						.setMaxResults(maxResults)
+						.setQ(query)
+						.execute();
+		
+		List<ChildReference> refs = list.getItems();
+		
+		if (CollectionUtils.isEmpty(refs)) {
+			return new ArrayList<String>();
+		} else {
+			PaginationUtils.savePageToken(NEXT_PAGE_TOKEN, list.getNextPageToken(), message);
+			List<String> result = new ArrayList<String>(refs.size());
+			for (ChildReference r : refs) {
+				result.add(r.getId());
+			}
+			
+			return result;
+		}
 	}
 	
 	/**
@@ -928,46 +987,42 @@ public class GoogleDriveConnector extends AbstractGoogleOAuthConnector {
 	}
 	
 	/**
-	 * Returns a paged {@link Iterator} with all the {@link org.mule.module.google.drive.model.Comment}s for a file
+	 * Lists all comments for a file
 	 * 
 	 * {@sample.xml ../../../doc/GoogleDriveConnector.xml.sample google-drive:list-comments}
 	 * 
+	 * @param message the current mule message
 	 * @param fileId the id of the file which comments you want
 	 * @param includeDeleted If true, all comments and replies, including deleted comments and replies (with content stripped) will be returned.
 	 * @param maxResults The maximum number of discussions to include in the response, used for paging. Acceptable values are 0 to 100, inclusive.
+	 * @param pageToken The continuation token, used to page through large result sets
 	 * @param updatedMin Only discussions that were updated after this timestamp will be returned. Formatted as an RFC 3339 timestamp.
-	 * @param pagingConfiguration the paging configuration object
-     * @return a paginated iterator with instances of {@link org.mule.module.google.drive.model.Comment}
+	 * @return a list with instances of {@link org.mule.module.google.drive.model.Comment}
 	 * @throws IOException in case of connection issues
 	 */
 	@Processor
     @OAuthProtected
 	@OAuthInvalidateAccessTokenOn(exception=OAuthTokenExpiredException.class)
-	@Paged
-	public PagingDelegate<Comment> listComments(
-			final String fileId,
-			final @Optional @Default("false") boolean includeDeleted,
-			final @Optional @Default("100") int maxResults,
-			final @Optional String updatedMin,
-			final PagingConfiguration pagingConfiguration
+	@Inject
+	public List<Comment> listComments(
+			MuleMessage message,
+			String fileId,
+			@Optional @Default("false") boolean includeDeleted,
+			@Optional @Default("100") int maxResults,
+			@Optional @Default("#[flowVars['GoogleDrive_NEXT_PAGE_TOKEN']]") String pageToken,
+			@Optional String updatedMin
 			) throws IOException {
 		
-		return new TokenBasedPagingDelegate<Comment>() {
-			
-			@Override
-			protected List<Comment> doGetPage() throws IOException {
-				CommentList response = client.comments().list(fileId)
-						.setIncludeDeleted(includeDeleted)
-						.setMaxResults(maxResults)
-						.setPageToken(this.getPageToken())
-						.setUpdatedMin(updatedMin)
-						.execute();
-				
-				this.setPageToken(response.getNextPageToken());
-				return Comment.valueOf(response.getItems(), Comment.class);
-			}
-		};
+		CommentList response = this.client.comments().list(fileId)
+										.setIncludeDeleted(includeDeleted)
+										.setMaxResults(maxResults)
+										.setPageToken(pageToken)
+										.setUpdatedMin(updatedMin)
+										.execute();
 		
+
+		PaginationUtils.savePageToken(NEXT_PAGE_TOKEN, response.getNextPageToken(), message);
+		return Comment.valueOf(response.getItems(), Comment.class);
 	}
 	
 	/**
@@ -1069,44 +1124,41 @@ public class GoogleDriveConnector extends AbstractGoogleOAuthConnector {
 	}
 	
 	/**
-	 * Returns a paginated {@link Iterator} with all the {@link org.mule.module.google.drive.model.CommentReply} for a given comment
+	 * Lists all replies for a given comment
 	 * 
 	 * {@sample.xml ../../../doc/GoogleDriveConnector.xml.sample google-drive:list-comment-replies}
 	 * 
+	 * @param message the current mule message
 	 * @param fileId the id of the file on which your comment has been replied on
 	 * @param commentId the id of the comment which reply you want
 	 * @param includeDeleted If true, all comments and replies, including deleted comments and replies (with content stripped) will be returned.
 	 * @param maxResults The maximum number of replies to include in the response, used for paging. Acceptable values are 0 to 100.
-	 * @param pagingConfiguration the paging configuration object
-     * @return a paginated iterator with instances of {@link org.mule.module.google.drive.model.CommentReply}
+	 * @param pageToken The continuation token, used to page through large result sets
+	 * @return a list with instances of {@link org.mule.module.google.drive.model.org.mule.module.google.drive.model.CommentReply}
 	 * @throws IOException in case of connection issues
 	 */
 	@Processor
     @OAuthProtected
 	@OAuthInvalidateAccessTokenOn(exception=OAuthTokenExpiredException.class)
-	@Paged
-	public PagingDelegate<CommentReply> listCommentReplies(
-			final String fileId,
-			final String commentId, 
-			final @Optional @Default("false") boolean includeDeleted,
-			final @Optional @Default("100") int maxResults,
-			final PagingConfiguration pagingConfiguration
+	@Inject
+	public List<CommentReply> listCommentReplies(
+			MuleMessage message,
+			String fileId,
+			String commentId, 
+			@Optional @Default("false") boolean includeDeleted,
+			@Optional @Default("100") int maxResults,
+			@Optional @Default("#[flowVars['GoogleDrive_NEXT_PAGE_TOKEN']]") String pageToken
 			) throws IOException {
 		
-		return new TokenBasedPagingDelegate<CommentReply>() {
-			
-			@Override
-			protected List<CommentReply> doGetPage() throws IOException {
-				CommentReplyList response = client.replies().list(fileId, commentId)
-						.setIncludeDeleted(includeDeleted)
-						.setMaxResults(maxResults)
-						.setPageToken(this.getPageToken())
-						.execute();
-				
-				this.setPageToken(response.getNextPageToken());
-				return CommentReply.valueOf(response.getItems(), CommentReply.class);
-			}
-		};
+		CommentReplyList response = this.client.replies().list(fileId, commentId)
+										.setIncludeDeleted(includeDeleted)
+										.setMaxResults(maxResults)
+										.setPageToken(pageToken)
+										.execute();
+		
+
+		PaginationUtils.savePageToken(NEXT_PAGE_TOKEN, response.getNextPageToken(), message);
+		return CommentReply.valueOf(response.getItems(), CommentReply.class);
 	}
 	
 	/**
@@ -1245,6 +1297,14 @@ public class GoogleDriveConnector extends AbstractGoogleOAuthConnector {
 
 	public void setScope(String scope) {
 		this.scope = scope;
+	}
+
+	public IdentifierPolicy getIdentifierPolicy() {
+		return identifierPolicy;
+	}
+
+	public void setIdentifierPolicy(IdentifierPolicy identifierPolicy) {
+		this.identifierPolicy = identifierPolicy;
 	}
 
 	public GoogleDriveClientFactory getClientFactory() {
