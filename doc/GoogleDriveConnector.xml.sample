@@ -1,0 +1,149 @@
+<!-- BEGIN_INCLUDE(google-drive:get-file-metadata) -->
+    <google-drive:get-file-metadata fileId="#[flowVars['id']]" />
+<!-- END_INCLUDE(google-drive:get-file-metadata) -->
+<!-- BEGIN_INCLUDE(google-drive:download-file) -->
+    <google-drive:download-file />
+<!-- END_INCLUDE(google-drive:download-file) -->
+<!-- BEGIN_INCLUDE(google-drive:upload) -->
+    <google-drive:upload mimeType="image/jpeg" contentStream-ref="#[flowVars['contentStream']]" />
+<!-- END_INCLUDE(google-drive:upload) -->
+<!-- BEGIN_INCLUDE(google-drive:patch-file) -->
+    <google-drive:patch-file>
+        <google-drive:fields>
+            <google-drive:field>Title</google-drive:field>
+        </google-drive:fields>
+    </google-drive:patch-file>
+<!-- END_INCLUDE(google-drive:patch-file) -->
+<!-- BEGIN_INCLUDE(google-drive:update-file) -->
+    <google-drive:update-file />
+<!-- END_INCLUDE(google-drive:update-file) -->
+<!-- BEGIN_INCLUDE(google-drive:delete-file) -->
+    <google-drive:delete-file fileId="#[payload.id]" />
+<!-- END_INCLUDE(google-drive:delete-file) -->
+<!-- BEGIN_INCLUDE(google-drive:list-files) -->
+    <google-drive:list-files />
+<!-- END_INCLUDE(google-drive:list-files) -->
+<!-- BEGIN_INCLUDE(google-drive:copy-file) -->
+    <google-drive:copy-file sourceId="#[flowVars['source.id']]" />
+<!-- END_INCLUDE(google-drive:copy-file) -->
+<!-- BEGIN_INCLUDE(google-drive:touch) -->
+    <google-drive:touch fileId="#[payload.id]" />
+<!-- END_INCLUDE(google-drive:touch) -->
+<!-- BEGIN_INCLUDE(google-drive:trash-file) -->
+    <google-drive:trash-file fileId="#[payload.id]" />
+<!-- END_INCLUDE(google-drive:trash-file) -->
+<!-- BEGIN_INCLUDE(google-drive:restore-file) -->
+    <google-drive:restore-file fileId="#[payload.id]" />
+<!-- END_INCLUDE(google-drive:restore-file) -->
+<!-- BEGIN_INCLUDE(google-drive:about) -->
+    <google-drive:about />
+<!-- END_INCLUDE(google-drive:about) -->
+<!-- BEGIN_INCLUDE(google-drive:list-changes) -->
+    <google-drive:list-changes />
+<!-- END_INCLUDE(google-drive:list-changes) -->
+<!-- BEGIN_INCLUDE(google-drive:get-change) -->
+    <google-drive:get-change changeId="#[payload.id]" />
+<!-- END_INCLUDE(google-drive:get-change) -->
+<!-- BEGIN_INCLUDE(google-drive:list-files-in-folder) -->
+    <google-drive:list-files-in-folder folderId="root" />
+<!-- END_INCLUDE(google-drive:list-files-in-folder) -->
+<!-- BEGIN_INCLUDE(google-drive:insert-file-in-folder) -->
+    <google-drive:insert-file-in-folder fileId="#[payload.id]" folderId="root" />
+<!-- END_INCLUDE(google-drive:insert-file-in-folder) -->
+<!-- BEGIN_INCLUDE(google-drive:delete-file-from-folder) -->
+    <google-drive:delete-file-from-folder fileId="#[payload.id]" folderId="root" />
+<!-- END_INCLUDE(google-drive:delete-file-from-folder) -->
+<!-- BEGIN_INCLUDE(google-drive:list-permissions) -->
+    <google-drive:list-permissions fileId="#[payload.id]" />
+<!-- END_INCLUDE(google-drive:list-permissions) -->
+<!-- BEGIN_INCLUDE(google-drive:delete-permission) -->
+    <google-drive:delete-permission fileId="#[payload.id]" permissionId="#[flowVars['permId']]"/>
+<!-- END_INCLUDE(google-drive:delete-permission) -->
+<!-- BEGIN_INCLUDE(google-drive:get-permission) -->
+    <google-drive:get-permission fileId="#[payload.id]" permissionId="#[flowVars['permId']]"/>
+<!-- END_INCLUDE(google-drive:get-permission) -->
+<!-- BEGIN_INCLUDE(google-drive:insert-permission) -->
+    <google-drive:insert-permission fileId="#[payload.id]" />
+<!-- END_INCLUDE(google-drive:insert-permission) -->
+<!-- BEGIN_INCLUDE(google-drive:update-permission) -->
+    <google-drive:update-permission fileId="#[flowVars['fileID']]" />
+<!-- END_INCLUDE(google-drive:update-permission) -->
+<!-- BEGIN_INCLUDE(google-drive:patch-permission) -->
+    <google-drive:patch-permission fileId="#[flowVars['fileID']]">
+        <google-drive:fields>
+            <google-drive:field>role</google-drive:field>
+        </google-drive:fields>
+    </google-drive:patch-permission>
+<!-- END_INCLUDE(google-drive:patch-permission) -->
+<!-- BEGIN_INCLUDE(google-drive:download-revision) -->
+    <google-drive:download-revision />
+<!-- END_INCLUDE(google-drive:download-revision) -->
+<!-- BEGIN_INCLUDE(google-drive:get-revision) -->
+    <google-drive:get-revision fileId="#[payload.id]" revisionId="#[flowVars['revId']]"/>
+<!-- END_INCLUDE(google-drive:get-revision) -->
+<!-- BEGIN_INCLUDE(google-drive:delete-revision) -->
+    <google-drive:delete-revision fileId="#[payload.id]" revisionId="#[flowVars['revId']]"/>
+<!-- END_INCLUDE(google-drive:delete-revision) -->
+<!-- BEGIN_INCLUDE(google-drive:list-revisions) -->
+    <google-drive:list-revisions fileId="#[payload.id]" />
+<!-- END_INCLUDE(google-drive:list-revisions) -->
+<!-- BEGIN_INCLUDE(google-drive:patch-revision) -->
+    <google-drive:patch-revision fileId="#[payload.id]">
+        <google-drive:fields>
+            <google-drive:field>Title</google-drive:field>
+        </google-drive:fields>
+    </google-drive:patch-revision>
+<!-- END_INCLUDE(google-drive:patch-revision) -->
+<!-- BEGIN_INCLUDE(google-drive:update-revision) -->
+    <google-drive:update-revision fileId="#[payload.id]" revisionId="#[flowVars['revId']]"/>
+<!-- END_INCLUDE(google-drive:update-revision) -->
+<!-- BEGIN_INCLUDE(google-drive:list-apps) -->
+    <google-drive:list-apps />
+<!-- END_INCLUDE(google-drive:list-apps) -->
+<!-- BEGIN_INCLUDE(google-drive:get-app) -->
+    <google-drive:get-app appId="#[flowVars['appId']]"/>
+<!-- END_INCLUDE(google-drive:get-app) -->
+<!-- BEGIN_INCLUDE(google-drive:get-comment) -->
+    <google-drive:get-comment fileId="#[payload.id]" commentId="#[flowVars['commentId']]"/>
+<!-- END_INCLUDE(google-drive:get-comment) -->
+<!-- BEGIN_INCLUDE(google-drive:list-comments) -->
+    <google-drive:list-comments fileId="#[payload.id]" />
+<!-- END_INCLUDE(google-drive:list-comments) -->
+<!-- BEGIN_INCLUDE(google-drive:insert-comment) -->
+    <google-drive:insert-comment fileId="#[flowVars['fileId']]" />
+<!-- END_INCLUDE(google-drive:insert-comment) -->
+<!-- BEGIN_INCLUDE(google-drive:update-comment) -->
+    <google-drive:update-comment fileId="#[flowVars['fileId']]" />
+<!-- END_INCLUDE(google-drive:update-comment) -->
+<!-- BEGIN_INCLUDE(google-drive:patch-comment) -->
+    <google-drive:patch-comment fileId="#[flowVars['fileId']]">
+        <google-drive:fields>
+            <google-drive:field>content</google-drive:field>
+        </google-drive:fields>
+    </google-drive:patch-comment>
+<!-- END_INCLUDE(google-drive:patch-comment) -->
+<!-- BEGIN_INCLUDE(google-drive:delete-comment) -->
+    <google-drive:delete-comment fileId="#[payload.id]" commentId="#[flowVars['commentId']]"/>
+<!-- END_INCLUDE(google-drive:delete-comment) -->
+<!-- BEGIN_INCLUDE(google-drive:get-comment-reply) -->
+    <google-drive:get-comment-reply fileId="#[payload.id]" commentId="#[flowVars['commentId']]" replyId="#[flowVars['replyId']]"/>
+<!-- END_INCLUDE(google-drive:get-comment-reply) -->
+<!-- BEGIN_INCLUDE(google-drive:insert-comment-reply) -->
+    <google-drive:insert-comment-reply fileId="#[flowVars['fileId']]" commentId="#[flowVars['commentId']]" />
+<!-- END_INCLUDE(google-drive:insert-comment-reply) -->
+<!-- BEGIN_INCLUDE(google-drive:list-comment-replies) -->
+    <google-drive:list-comment-replies fileId="#[payload.id]" commentId="#[flowVars['commentId']]"/>
+<!-- END_INCLUDE(google-drive:list-comment-replies) -->
+<!-- BEGIN_INCLUDE(google-drive:update-comment-reply) -->
+    <google-drive:update-comment-reply fileId="#[payload.id]" commentId="#[flowVars['commentId']]"/>
+<!-- END_INCLUDE(google-drive:update-comment-reply) -->
+<!-- BEGIN_INCLUDE(google-drive:patch-comment-reply) -->
+    <google-drive:patch-comment-reply fileId="#[payload.id]" commentId="#[flowVars['commentId']]">
+        <google-drive:fields>
+            <google-drive:field>content</google-drive:field>
+        </google-drive:fields>
+    </google-drive:patch-comment-reply>
+<!-- END_INCLUDE(google-drive:patch-comment-reply) -->
+<!-- BEGIN_INCLUDE(google-drive:delete-comment-reply) -->
+    <google-drive:delete-comment-reply fileId="#[payload.id]" commentId="#[flowVars['commentId']]" replyId="#[flowVars['replyId']]"/>
+<!-- END_INCLUDE(google-drive:delete-comment-reply) -->
