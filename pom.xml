@@ -3,6 +3,7 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
+	<groupId>org.mule.modules</groupId>
 	<artifactId>mule-module-google-drive</artifactId>
 	<packaging>mule-module</packaging>
 	<name>Google Drive Connector</name>
@@ -32,26 +33,14 @@
 			<version>v2-rev62-1.13.2-beta</version>
 		</dependency>
 		<dependency>
-			<groupId>com.mulesoft.google</groupId>
-			<artifactId>google-api-commons</artifactId>
+			<groupId>org.mule.modules</groupId>
+			<artifactId>mule-module-google-api-commons</artifactId>
 			<version>${google.commons.version}</version>
 		</dependency>
 
 	</dependencies>
 
 	<repositories>
-		<repository>
-			<id>mule-releases</id>
-			<name>MuleSoft Releases Repository</name>
-			<url>http://repository.mulesoft.org/releases/</url>
-			<layout>default</layout>
-		</repository>
-		<repository>
-			<id>mule-snapshots</id>
-			<name>MuleSoft Snapshots Repository</name>
-			<url>http://repository.mulesoft.org/snapshots/</url>
-			<layout>default</layout>
-		</repository>
 		<repository>
 			<id>google-api-services</id>
 			<url>http://mavenrepo.google-api-java-client.googlecode.com/hg</url>
